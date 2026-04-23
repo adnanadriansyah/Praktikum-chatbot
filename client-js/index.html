@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Gemini</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f7f7f8;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: #202123;
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-right: 1px solid #2d2f31;
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .model-badge {
+            background: linear-gradient(135deg, #10a37f 0%, #0d8a6a 100%);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .model-badge::before {
+            content: "✦";
+        }
+
+        .header-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .new-chat-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+
+        .new-chat-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Main Chat Area */
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            height: 100%;
+        }
+
+        .messages-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .messages {
+            max-width: 768px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        /* Message styling */
+        .message {
+            display: flex;
+            gap: 20px;
+            padding: 24px 0;
+            border-bottom: 1px solid #f0f0f0;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .message:last-child {
+            border-bottom: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            background: #ffffff;
+        }
+
+        .message.bot {
+            background: #f7f7f8;
+        }
+
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .message.bot .avatar {
+            background: linear-gradient(135deg, #10a37f 0%, #0d8a6a 100%);
+        }
+
+        .message.user .avatar {
+            background: #5d5fef;
+        }
+
+        .message-content {
+            flex: 1;
+            line-height: 1.75;
+            font-size: 1em;
+            color: #1a1a1a;
+            padding-top: 4px;
+            white-space: pre-line;
+            word-wrap: break-word;
+        }
+
+        .message.bot .message-content {
+            color: #1a1a1a;
+        }
+
+        .message.user .message-content {
+            color: #1a1a1a;
+        }
+
+        /* Typing indicator */
+        .typing-container {
+            display: flex;
+            gap: 20px;
+            padding: 24px 0;
+            background: #f7f7f8;
+            display: none;
+        }
+
+        .typing-container.show {
+            display: flex;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e5e5e5;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #8e8ea0;
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-4px); opacity: 1; }
+        }
+
+        /* Welcome screen */
+        .welcome-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .welcome-logo {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #10a37f 0%, #0d8a6a 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin-bottom: 24px;
+        }
+
+        .welcome-title {
+            font-size: 1.8em;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+        }
+
+        .welcome-subtitle {
+            font-size: 1em;
+            color: #666;
+            margin-bottom: 32px;
+        }
+
+        .capabilities {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .capability-card {
+            background: #f7f7f8;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            color: #666;
+            transition: background 0.2s;
+            cursor: default;
+        }
+
+        .capability-card:hover {
+            background: #ececf1;
+        }
+
+        /* Input area */
+        .input-container {
+            flex-shrink: 0;
+            background: #ffffff;
+            border-top: 1px solid #e5e5e5;
+            padding: 24px 20px;
+        }
+
+        .input-wrapper {
+            max-width: 768px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .input-box {
+            display: flex;
+            align-items: flex-end;
+            background: #ffffff;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            padding: 12px 16px;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.04);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-box:focus-within {
+            border-color: #10a37f;
+            box-shadow: 0 0 0 2px rgba(16, 163, 127, 0.1);
+        }
+
+        #msg {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 1em;
+            font-family: inherit;
+            resize: none;
+            max-height: 200px;
+            min-height: 24px;
+            line-height: 1.5;
+            padding: 2px 0;
+            background: transparent;
+        }
+
+        #msg::placeholder {
+            color: #8e8ea0;
+        }
+
+        #send-btn {
+            background: #10a37f;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 12px;
+            margin-left: 12px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+
+        #send-btn:hover {
+            background: #0d8a6a;
+        }
+
+        #send-btn:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+        }
+
+        .disclaimer {
+            text-align: center;
+            font-size: 0.8em;
+            color: #999;
+            margin-top: 12px;
+            padding: 0 20px;
+        }
+
+        /* Scrollbar */
+        .messages-wrapper::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .messages-wrapper::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .messages-wrapper::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+
+        .messages-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .message {
+                padding: 20px 16px;
+                gap: 16px;
+            }
+
+            .messages {
+                padding: 20px 16px;
+            }
+
+            .input-container {
+                padding: 16px;
+            }
+
+            .welcome-title {
+                font-size: 1.5em;
+            }
+
+            .capabilities {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-title {
+                font-size: 1em;
+            }
+
+            .model-badge {
+                padding: 4px 8px;
+                font-size: 0.75em;
+            }
+        }
+
+        /* Dark scrollbar for Firefox */
+        .messages-wrapper {
+            scrollbar-width: thin;
+            scrollbar-color: #d1d5db transparent;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <div class="model-badge">Gemini Flash</div>
+            <div class="header-title">Chatbot Gemini</div>
+        </div>
+        <button class="new-chat-btn" onclick="clearChat()">+ New Chat</button>
+    </div>
+
+    <!-- Main Chat Area -->
+    <div class="main-container">
+        <div class="messages-wrapper" id="messages-wrapper">
+            <div class="messages" id="messages">
+                <!-- Welcome screen (shown when no chat history) -->
+                <div class="welcome-screen" id="welcome-screen">
+                    <div class="welcome-logo">💬</div>
+                    <div class="welcome-title">Chatbot Gemini</div>
+                    <div class="welcome-subtitle">How can I help you today?</div>
+                    <div class="capabilities">
+                        <div class="capability-card">✍️ Write creative content</div>
+                        <div class="capability-card">💡 Brainstorm ideas</div>
+                        <div class="capability-card">🔍 Research topics</div>
+                        <div class="capability-card">💻 Write & debug code</div>
+                        <div class="capability-card">📊 Analyze data</div>
+                        <div class="capability-card">🎯 Answer questions</div>
+                    </div>
+                </div>
+
+                <!-- Typing indicator -->
+                <div class="typing-container" id="typing">
+                    <div class="avatar" style="background: linear-gradient(135deg, #10a37f 0%, #0d8a6a 100%);">🤖</div>
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input area -->
+        <div class="input-container">
+            <div class="input-wrapper">
+                <div class="input-box">
+                    <textarea
+                        id="msg"
+                        placeholder="Message Gemini..."
+                        rows="1"
+                        autocomplete="off"
+                        autofocus
+                    ></textarea>
+                    <button type="submit" id="send-btn">Send</button>
+                </div>
+                <div class="disclaimer">
+                    Chatbot Gemini may display inaccurate information. Verify important details.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
