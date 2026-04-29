@@ -6,7 +6,7 @@ services:
     ports:
       - "8080:5000"
     environment:
-      - GEMINI_API_KEY=AIzaSyD5rhr3_8dikZTXlc6yE5zZ2Xq8weV7Jpo
+      - GEMINI_API_KEY=AIzaSyC0YmoIZXgzdU34KV8zyFWniCO-CnSTpKY
 
   client:
     build: ./client-js
