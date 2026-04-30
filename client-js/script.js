@@ -58,6 +58,118 @@ function groupSessionsByTime(list) {
     return groups;
 }
 
+// ─── MARKDOWN PARSER ──────────────────────────────────────────────────────────
+
+function parseMarkdown(text) {
+    // Proses baris per baris agar lebih akurat
+    const lines = text.split('\n');
+    const output = [];
+    let i = 0;
+    let inCodeBlock = false;
+    let codeLines = [];
+
+    function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // Proses inline: bold, italic, inline code
+    function inlineFormat(s) {
+        s = escHtml(s);
+        // Inline code dulu (hindari proses isi backtick)
+        s = s.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+        // Bold+italic ***text***
+        s = s.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+        // Bold **text**
+        s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        // Italic *text* — hanya jika tidak di awal baris (hindari list marker)
+        s = s.replace(/(?<!\s)\*(?!\s)(.+?)(?<!\s)\*(?!\s)/g, '<em>$1</em>');
+        return s;
+    }
+
+    while (i < lines.length) {
+        const raw = lines[i];
+
+        // ── Code block ──────────────────────────────────────
+        if (raw.trim().startsWith('```')) {
+            if (!inCodeBlock) {
+                inCodeBlock = true;
+                codeLines = [];
+            } else {
+                inCodeBlock = false;
+                output.push(`<pre class="code-block"><code>${escHtml(codeLines.join('\n'))}</code></pre>`);
+                codeLines = [];
+            }
+            i++; continue;
+        }
+        if (inCodeBlock) {
+            codeLines.push(raw);
+            i++; continue;
+        }
+
+        // ── Heading ──────────────────────────────────────────
+        const h3 = raw.match(/^###\s+(.+)/);
+        const h2 = raw.match(/^##\s+(.+)/);
+        const h1 = raw.match(/^#\s+(.+)/);
+        if (h3) { output.push(`<h3 class="md-h3">${inlineFormat(h3[1])}</h3>`); i++; continue; }
+        if (h2) { output.push(`<h2 class="md-h2">${inlineFormat(h2[1])}</h2>`); i++; continue; }
+        if (h1) { output.push(`<h1 class="md-h1">${inlineFormat(h1[1])}</h1>`); i++; continue; }
+
+        // ── Horizontal rule ──────────────────────────────────
+        if (/^---+$/.test(raw.trim())) {
+            output.push('<hr class="md-hr">');
+            i++; continue;
+        }
+
+        // ── Unordered list (* item atau - item) ──────────────
+        if (/^[\*\-]\s/.test(raw)) {
+            const items = [];
+            while (i < lines.length && /^[\*\-]\s/.test(lines[i])) {
+                const content = lines[i].replace(/^[\*\-]\s+/, '');
+                items.push(`<li>${inlineFormat(content)}</li>`);
+                i++;
+            }
+            output.push(`<ul class="md-ul">${items.join('')}</ul>`);
+            continue;
+        }
+
+        // ── Ordered list (1. 2. 3.) ──────────────────────────
+        if (/^\d+\.\s/.test(raw)) {
+            const items = [];
+            while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
+                const content = lines[i].replace(/^\d+\.\s+/, '');
+                items.push(`<li>${inlineFormat(content)}</li>`);
+                i++;
+            }
+            output.push(`<ol class="md-ol">${items.join('')}</ol>`);
+            continue;
+        }
+
+        // ── Indented list (    * item atau    - item) ─────────
+        if (/^\s{2,}[\*\-]\s/.test(raw)) {
+            const items = [];
+            while (i < lines.length && /^\s{2,}[\*\-]\s/.test(lines[i])) {
+                const content = lines[i].replace(/^\s+[\*\-]\s+/, '');
+                items.push(`<li>${inlineFormat(content)}</li>`);
+                i++;
+            }
+            output.push(`<ul class="md-ul md-ul-indent">${items.join('')}</ul>`);
+            continue;
+        }
+
+        // ── Baris kosong ─────────────────────────────────────
+        if (raw.trim() === '') {
+            output.push('<br>');
+            i++; continue;
+        }
+
+        // ── Paragraf biasa ───────────────────────────────────
+        output.push(`<span>${inlineFormat(raw)}</span><br>`);
+        i++;
+    }
+
+    return output.join('\n');
+}
+
 // ─── SIDEBAR RENDER ──────────────────────────────────────────────────────────
 
 function renderSidebar() {
@@ -97,7 +209,6 @@ function renderSidebar() {
             item.className = "history-item" + (session.id === activeId ? " active" : "");
             item.dataset.id = session.id;
 
-            // emoji based on first user message content (simple heuristic)
             const firstMsg = session.messages.find(m => m.sender === "user");
             const text = firstMsg ? firstMsg.text : "";
             const icon = pickIcon(text);
@@ -169,7 +280,6 @@ function loadSession(id) {
 
     setActiveSession(id);
 
-    // Clear message area
     const messagesEl = document.getElementById("messages");
     const welcomeEl  = document.getElementById("welcome-screen");
     const typingEl   = document.getElementById("typing");
@@ -197,14 +307,12 @@ function deleteSession(id) {
     sessions = sessions.filter(s => s.id !== id);
     saveSessions();
 
-    // If deleted the active session, go blank
     if (id === activeId) {
         const welcomeEl = document.getElementById("welcome-screen");
         const messagesEl = document.getElementById("messages");
         messagesEl.querySelectorAll(".message").forEach(m => m.remove());
         if (welcomeEl) welcomeEl.style.display = "flex";
 
-        // Switch to another session or create none
         if (sessions.length > 0) {
             setActiveSession(sessions[0].id);
             loadSession(sessions[0].id);
@@ -219,10 +327,8 @@ function deleteSession(id) {
 }
 
 function startNewChat() {
-    // Save current if empty (don't create blank sessions)
     const existing = getActiveSession();
     if (existing && existing.messages.length === 0) {
-        // Already a blank session, just reset UI
         const messagesEl = document.getElementById("messages");
         const welcomeEl  = document.getElementById("welcome-screen");
         messagesEl.querySelectorAll(".message").forEach(m => m.remove());
@@ -276,7 +382,14 @@ function createMessageElement(sender, text) {
 
     const content = document.createElement("div");
     content.className = "msg-content";
-    content.textContent = text;
+
+    // Gunakan parseMarkdown hanya untuk pesan bot
+    if (sender === "bot") {
+        content.innerHTML = parseMarkdown(text);
+    } else {
+        // Pesan user: cukup escape HTML dan ganti newline
+        content.innerHTML = escapeHtml(text).replace(/\n/g, "<br>");
+    }
 
     body.appendChild(senderLabel);
     body.appendChild(content);
@@ -291,7 +404,6 @@ function addMessage(sender, text) {
     const typingEl   = document.getElementById("typing");
     if (!messagesEl) return;
 
-    // Ensure active session
     if (!activeId) {
         const s = createNewSession();
         setActiveSession(s.id);
@@ -302,12 +414,10 @@ function addMessage(sender, text) {
     const el = createMessageElement(sender, text);
     messagesEl.insertBefore(el, typingEl);
 
-    // Save to active session
     const session = getActiveSession();
     if (session) {
         session.messages.push({ sender, text, time: new Date().toISOString() });
 
-        // Auto-generate title from first user message
         if (sender === "user" && session.messages.filter(m => m.sender === "user").length === 1) {
             session.title = text.length > 40 ? text.slice(0, 40) + "…" : text;
         }
@@ -423,7 +533,6 @@ function autoResizeTextarea() {
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Load sessions
     try {
         sessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || "[]");
     } catch (e) {
@@ -431,7 +540,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     const savedActive = localStorage.getItem(ACTIVE_KEY);
 
-    // Restore active session
     if (savedActive && getSession(savedActive)) {
         setActiveSession(savedActive);
         loadSession(savedActive);
@@ -440,23 +548,16 @@ document.addEventListener("DOMContentLoaded", () => {
         setActiveSession(newest.id);
         loadSession(newest.id);
     } else {
-        // Fresh start — create blank session
         const s = createNewSession();
         setActiveSession(s.id);
     }
 
     renderSidebar();
 
-    // Sidebar toggle button
     document.getElementById("sidebar-toggle").addEventListener("click", toggleSidebar);
-
-    // Overlay click → close
     document.getElementById("sidebar-overlay").addEventListener("click", closeSidebarMobile);
-
-    // New chat button
     document.getElementById("btn-new-chat").addEventListener("click", startNewChat);
 
-    // Input events
     const input = document.getElementById("msg");
     input.addEventListener("input", autoResizeTextarea);
     input.addEventListener("keydown", (e) => {

@@ -44,9 +44,25 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 
 	url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=" + apiKey
 
+	// System instruction: paksa Gemini balas dengan teks biasa tanpa markdown
+	systemInstruction := map[string]interface{}{
+		"parts": []map[string]interface{}{
+			{
+				"text": "Kamu adalah asisten yang membalas HANYA dengan teks biasa. " +
+					"Jangan gunakan markdown sama sekali. " +
+					"Jangan gunakan tanda bintang (*), double bintang (**), tanda pagar (#), " +
+					"tanda underscore (_), backtick (`), bullet point, numbered list, " +
+					"atau format apapun selain teks polos. " +
+					"Tulis jawaban dalam paragraf biasa yang rapi dan mudah dibaca.",
+			},
+		},
+	}
+
 	body := map[string]interface{}{
+		"system_instruction": systemInstruction,
 		"contents": []map[string]interface{}{
 			{
+				"role": "user",
 				"parts": []map[string]interface{}{
 					{"text": req.Message},
 				},
@@ -73,7 +89,6 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Log the raw response for debugging (optional - remove in production)
 	fmt.Printf("Gemini API Response: %s\n", string(respBody))
 
 	var result map[string]interface{}
@@ -86,8 +101,8 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 	if errMsg, ok := result["error"]; ok {
 		errDetail := ""
 		if errMap, ok := errMsg.(map[string]interface{}); ok {
-			if msg, ok := errMap["message"]; ok {
-				errDetail = msg.(string)
+			if msg, ok := errMap["message"].(string); ok {
+				errDetail = msg
 			}
 		}
 		res := Response{Error: errDetail}
@@ -98,7 +113,6 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 
 	text := "Tidak ada respon dari AI"
 
-	// Try to extract text from candidates
 	if candidates, ok := result["candidates"].([]interface{}); ok && len(candidates) > 0 {
 		if candidate, ok := candidates[0].(map[string]interface{}); ok {
 			if content, ok := candidate["content"].(map[string]interface{}); ok {
