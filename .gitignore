@@ -1,7 +1,7 @@
 node_modules/
-.env
-
 multi-tenant/node_modules/
-multi-tenant/.env
+client-js/node_modules/
 
+.env
+multi-tenant/.env
 server-go/.env
