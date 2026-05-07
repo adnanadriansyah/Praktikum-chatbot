@@ -1,0 +1,4 @@
+node_modules/
+multi-tenant/node_modules/
+.env
+multi-tenant/.env
