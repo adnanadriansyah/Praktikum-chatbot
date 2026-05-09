@@ -3,6 +3,7 @@
  * MULTI-TENANT CHATBOT SERVER
  * Integrasi: Express + PostgreSQL + Google Gemini API
  * Arsitektur: Shared Schema (satu DB, isolasi via tenant_id)
+ * Port: 8081
  * ============================================================
  */
 
@@ -27,7 +28,6 @@ const pool = new Pool({
     password: process.env.DB_PASSWORD || 'password',
 });
 
-// Test koneksi saat startup
 pool.connect((err, client, release) => {
     if (err) {
         console.error('❌ Gagal terhubung ke PostgreSQL:', err.message);
@@ -82,7 +82,7 @@ async function callGemini(systemPrompt, userMessage, conversationHistory = []) {
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
     if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY belum dikonfigurasi di .env');
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
 
     const contents = [];
 
@@ -286,7 +286,6 @@ app.post('/api/chat', async (req, res) => {
             [activeSessionId, req.tenant.id, 'bot', botReply]
         );
 
-        // FIX: Update judul sesi dari "Chat Baru" ke pesan pertama, dan selalu update updated_at
         await pool.query(
             `UPDATE chat_sessions
              SET updated_at = NOW(),
@@ -368,7 +367,7 @@ app.patch('/api/sessions/:sessionId/title', async (req, res) => {
 // ─────────────────────────────────────────────
 // JALANKAN SERVER
 // ─────────────────────────────────────────────
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8081;
 app.listen(PORT, () => {
     console.log(`\n🚀 Server Multi-Tenant berjalan di http://localhost:${PORT}`);
     console.log(`   Tenant A (Klinik)   → x-api-key: key-klinik-123`);
