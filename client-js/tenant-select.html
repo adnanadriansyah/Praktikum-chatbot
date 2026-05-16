@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pilih Layanan — Multi-Tenant Chatbot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:       #09090f;
+            --surface:  #111118;
+            --border:   rgba(255,255,255,0.07);
+            --text:     #f0f0f5;
+            --muted:    #5a5a75;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ── AMBIENT BACKGROUND ── */
+        .bg-canvas {
+            position: fixed; inset: 0; z-index: 0;
+            pointer-events: none;
+        }
+        .orb {
+            position: absolute; border-radius: 50%;
+            filter: blur(100px); opacity: 0.06;
+        }
+        .orb-1 { width: 600px; height: 600px; background: #4fc3a1; top: -200px; left: -200px; animation: drift 20s ease-in-out infinite; }
+        .orb-2 { width: 500px; height: 500px; background: #7c6af7; bottom: -150px; right: -150px; animation: drift 20s ease-in-out infinite reverse; animation-delay: -10s; }
+        .orb-3 { width: 300px; height: 300px; background: #4fc3f7; top: 50%; left: 50%; transform: translate(-50%,-50%); animation: drift 15s ease-in-out infinite; animation-delay: -5s; }
+        @keyframes drift {
+            0%,100% { transform: translate(0,0); }
+            33% { transform: translate(40px,-30px); }
+            66% { transform: translate(-30px,40px); }
+        }
+
+        /* ── CONTENT ── */
+        .content {
+            position: relative; z-index: 1;
+            display: flex; flex-direction: column;
+            align-items: center; gap: 48px;
+            padding: 40px 24px;
+            max-width: 680px; width: 100%;
+            animation: fade-up 0.7s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        @keyframes fade-up {
+            from { opacity:0; transform:translateY(28px); }
+            to   { opacity:1; transform:translateY(0); }
+        }
+
+        /* Logo */
+        .logo-wrap {
+            display: flex; flex-direction: column; align-items: center; gap: 16px;
+        }
+        .logo-gem {
+            width: 64px; height: 64px; border-radius: 20px;
+            background: linear-gradient(135deg, #4fc3a1 0%, #4fc3f7 50%, #7c6af7 100%);
+            display: flex; align-items: center; justify-content: center;
+            animation: gem-glow 3s ease-in-out infinite;
+        }
+        @keyframes gem-glow {
+            0%,100% { box-shadow: 0 0 0 0 rgba(79,195,161,0.3); }
+            50%      { box-shadow: 0 0 40px 12px rgba(79,195,161,0.15); }
+        }
+        .logo-gem svg { width: 30px; height: 30px; fill: white; }
+        .logo-title {
+            font-size: 28px; font-weight: 700; letter-spacing: -0.04em;
+            background: linear-gradient(135deg, #f0f0f5 0%, #7070a0 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .logo-sub {
+            font-size: 13px; color: var(--muted);
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.06em; text-align: center; margin-top: -8px;
+        }
+
+        /* Heading */
+        .heading { text-align: center; }
+        .heading h2 {
+            font-size: 20px; font-weight: 600; color: var(--text);
+            letter-spacing: -0.02em; margin-bottom: 8px;
+        }
+        .heading p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+        /* Cards */
+        .cards {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%;
+        }
+
+        .card {
+            position: relative; overflow: hidden;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px; padding: 28px 24px;
+            cursor: pointer;
+            transition: transform 0.25s cubic-bezier(0.16,1,0.3,1),
+                        border-color 0.25s, box-shadow 0.25s;
+            text-decoration: none; color: inherit;
+            display: flex; flex-direction: column; gap: 16px;
+            animation: card-in 0.6s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        .card:nth-child(2) { animation-delay: 0.08s; }
+
+        @keyframes card-in {
+            from { opacity:0; transform:translateY(20px) scale(0.97); }
+            to   { opacity:1; transform:translateY(0) scale(1); }
+        }
+
+        .card::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse at 30% 20%, var(--card-glow) 0%, transparent 60%);
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .card:hover::before { opacity: 1; }
+
+        .card:hover {
+            transform: translateY(-4px) scale(1.01);
+            box-shadow: 0 20px 60px -20px var(--card-shadow);
+        }
+
+        /* Klinik */
+        .card-klinik {
+            --card-glow: rgba(79,195,161,0.2);
+            --card-shadow: rgba(79,195,161,0.3);
+        }
+        .card-klinik:hover { border-color: rgba(79,195,161,0.4); }
+
+        /* Sepatu */
+        .card-sepatu {
+            --card-glow: rgba(124,106,247,0.2);
+            --card-shadow: rgba(124,106,247,0.3);
+        }
+        .card-sepatu:hover { border-color: rgba(124,106,247,0.4); }
+
+        .card-icon-wrap {
+            width: 52px; height: 52px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; flex-shrink: 0;
+        }
+        .card-klinik .card-icon-wrap { background: rgba(79,195,161,0.12); border: 1px solid rgba(79,195,161,0.2); }
+        .card-sepatu .card-icon-wrap { background: rgba(124,106,247,0.12); border: 1px solid rgba(124,106,247,0.2); }
+
+        .card-body { display: flex; flex-direction: column; gap: 6px; }
+        .card-name {
+            font-size: 17px; font-weight: 600; letter-spacing: -0.02em;
+        }
+        .card-klinik .card-name { color: #4fc3a1; }
+        .card-sepatu .card-name { color: #9d8df7; }
+
+        .card-desc {
+            font-size: 12.5px; color: var(--muted); line-height: 1.6;
+        }
+
+        .card-tags {
+            display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;
+        }
+        .tag {
+            font-size: 10.5px; font-family: 'JetBrains Mono', monospace;
+            padding: 3px 9px; border-radius: 20px;
+            border: 1px solid;
+        }
+        .card-klinik .tag { color: #4fc3a1; border-color: rgba(79,195,161,0.25); background: rgba(79,195,161,0.08); }
+        .card-sepatu .tag { color: #9d8df7; border-color: rgba(124,106,247,0.25); background: rgba(124,106,247,0.08); }
+
+        .card-arrow {
+            position: absolute; top: 20px; right: 20px;
+            width: 28px; height: 28px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transform: translateX(-6px);
+            transition: all 0.2s;
+        }
+        .card-klinik .card-arrow { background: rgba(79,195,161,0.15); color: #4fc3a1; }
+        .card-sepatu .card-arrow { background: rgba(124,106,247,0.15); color: #9d8df7; }
+        .card:hover .card-arrow { opacity: 1; transform: translateX(0); }
+        .card-arrow svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+        /* Footer */
+        .footer {
+            font-size: 11px; color: var(--muted);
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.04em;
+        }
+
+        @media (max-width: 520px) {
+            .cards { grid-template-columns: 1fr; }
+            .logo-title { font-size: 22px; }
+            .content { gap: 36px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-canvas">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+</div>
+
+<div class="content">
+
+    <div class="logo-wrap">
+        <div class="logo-gem">
+            <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <div class="logo-title">Multi-Tenant Chatbot</div>
+        <div class="logo-sub">powered by Gemini · v1.0</div>
+    </div>
+
+    <div class="heading">
+        <h2>Pilih Layanan</h2>
+        <p>Silakan pilih layanan yang ingin Anda akses.<br>Setiap layanan memiliki asisten AI yang berbeda.</p>
+    </div>
+
+    <div class="cards">
+
+        <a class="card card-klinik" href="index.html?tenant=klinik" onclick="selectTenant('klinik', event)">
+            <div class="card-arrow">
+                <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </div>
+            <div class="card-icon-wrap">🏥</div>
+            <div class="card-body">
+                <div class="card-name">Klinik Sehat</div>
+                <div class="card-desc">Asisten kesehatan virtual yang siap membantu informasi medis, jadwal dokter, dan tips hidup sehat.</div>
+                <div class="card-tags">
+                    <span class="tag">Konsultasi</span>
+                    <span class="tag">Jadwal Dokter</span>
+                    <span class="tag">Tips Kesehatan</span>
+                </div>
+            </div>
+        </a>
+
+        <a class="card card-sepatu" href="index.html?tenant=sepatu" onclick="selectTenant('sepatu', event)">
+            <div class="card-arrow">
+                <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </div>
+            <div class="card-icon-wrap">👟</div>
+            <div class="card-body">
+                <div class="card-name">Toko Sepatu Langkah</div>
+                <div class="card-desc">Temukan sepatu impian Anda dengan rekomendasi personal dari asisten penjualan kami yang berpengalaman.</div>
+                <div class="card-tags">
+                    <span class="tag">Rekomendasi</span>
+                    <span class="tag">Katalog</span>
+                    <span class="tag">Ukuran & Gaya</span>
+                </div>
+            </div>
+        </a>
+
+    </div>
+
+    <div class="footer">Pilihan tersimpan secara lokal · Bisa diubah kapan saja</div>
+
+</div>
+
+<script>
+    function selectTenant(key, e) {
+        e.preventDefault();
+        // Simpan pilihan ke localStorage lalu redirect ke chatbot
+        localStorage.setItem('selected_tenant', key);
+        window.location.href = 'index.html';
+    }
+</script>
+</body>
+</html>

@@ -3,14 +3,92 @@
 // Riwayat tersimpan di PostgreSQL via server backend
 // ============================================================
 
-// ─── KONFIGURASI ─────────────────────────────────────────────
-const API_KEY    = "key-klinik-123";         // ← Ganti sesuai tenant
-const SERVER_URL = "http://localhost:8081";  // ← Sesuaikan PORT server
+// ─── KONFIGURASI TENANT ──────────────────────────────────────
+const TENANTS = {
+    klinik: {
+        key:       "key-klinik-123",
+        name:      "Klinik Sehat",
+        icon:      "🏥",
+        color:     "#4fc3a1",
+        colorSoft: "rgba(79,195,161,0.12)",
+        colorGlow: "rgba(79,195,161,0.25)",
+    },
+    sepatu: {
+        key:       "key-sepatu-456",
+        name:      "Toko Sepatu Langkah",
+        icon:      "👟",
+        color:     "#7c6af7",
+        colorSoft: "rgba(124,106,247,0.12)",
+        colorGlow: "rgba(124,106,247,0.25)",
+    },
+};
+
+const SERVER_URL = "http://localhost:8081";
 
 // ─── STATE ───────────────────────────────────────────────────
-let sessions   = [];
-let activeId   = null;
-let isSending  = false;
+let activeTenant = null;
+let sessions     = [];
+let activeId     = null;
+let isSending    = false;
+
+// ─── TENANT INIT ─────────────────────────────────────────────
+
+function loadTenantFromStorage() {
+    // Cek localStorage untuk pilihan tenant
+    const saved = localStorage.getItem("selected_tenant");
+    if (saved && TENANTS[saved]) {
+        activeTenant = TENANTS[saved];
+        return true;
+    }
+    return false;
+}
+
+function showTenantSelector() {
+    // Redirect ke halaman pemilihan tenant
+    window.location.href = "tenant-select.html";
+}
+
+function applyTenantTheme(tenant) {
+    const root = document.documentElement;
+    root.style.setProperty("--accent",      tenant.color);
+    root.style.setProperty("--accent-soft", tenant.colorSoft);
+    root.style.setProperty("--accent-glow", tenant.colorGlow);
+
+    const botNameEl  = document.getElementById("bot-name");
+    const welcomeEl  = document.getElementById("welcome-tenant-name");
+    const sideIconEl = document.getElementById("sidebar-tenant-icon");
+    const sideNameEl = document.getElementById("sidebar-tenant-name");
+    const badgeLabel = document.querySelector(".badge-label");
+
+    if (botNameEl)  botNameEl.textContent  = tenant.name;
+    if (welcomeEl)  welcomeEl.textContent  = tenant.name;
+    if (sideIconEl) sideIconEl.textContent = tenant.icon;
+    if (sideNameEl) sideNameEl.textContent = tenant.name;
+    if (badgeLabel) badgeLabel.textContent = tenant.name;
+}
+
+function buildTenantBadge() {
+    const wrap = document.getElementById("tenant-selector-wrap");
+    if (!wrap || !activeTenant) return;
+
+    // Tombol ganti tenant
+    const btn = document.createElement("button");
+    btn.className = "btn-change-tenant";
+    btn.innerHTML = `
+        <span class="badge-dot"></span>
+        <span class="badge-label">${activeTenant.name}</span>
+        <svg viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" fill="none" stroke-width="2"><path d="M7 16l-4-4 4-4M17 8l4 4-4 4"/></svg>
+    `;
+    btn.title = "Ganti layanan";
+    btn.addEventListener("click", () => {
+        // Clear pilihan dan kembali ke selector
+        localStorage.removeItem("selected_tenant");
+        window.location.href = "tenant-select.html";
+    });
+
+    wrap.innerHTML = "";
+    wrap.appendChild(btn);
+}
 
 // ─── API LAYER ───────────────────────────────────────────────
 
@@ -19,7 +97,7 @@ async function apiFetch(path, options = {}) {
         ...options,
         headers: {
             "Content-Type": "application/json",
-            "x-api-key": API_KEY,
+            "x-api-key": activeTenant.key,
             ...(options.headers || {})
         }
     });
@@ -59,6 +137,16 @@ async function deleteSessionAPI(sessionId) {
 // ─── INIT ────────────────────────────────────────────────────
 
 async function init() {
+    // Cek apakah tenant sudah dipilih
+    if (!loadTenantFromStorage()) {
+        showTenantSelector();
+        return;
+    }
+
+    // Terapkan tema tenant
+    applyTenantTheme(activeTenant);
+    buildTenantBadge();
+
     try {
         sessions = await fetchSessions();
     } catch (err) {
@@ -115,7 +203,7 @@ async function loadSessionMessages(sessionId) {
 // ─── NEW CHAT ────────────────────────────────────────────────
 
 async function startNewChat() {
-    const current = sessions.find(s => s.id === activeId);
+    const current  = sessions.find(s => s.id === activeId);
     const msgCount = parseInt(current?.message_count || 0);
     if (current && msgCount === 0) {
         clearMessages();
@@ -180,7 +268,6 @@ async function send() {
     const message = input.value.trim();
     if (!message) return;
 
-    // Pastikan ada sesi aktif
     if (!activeId) {
         try {
             const s = await createSession(message.slice(0, 50));
@@ -225,11 +312,47 @@ async function send() {
         renderMessage("bot", "⚠️ " + err.message, true);
         console.error("[Send] Error:", err);
     } finally {
-        isSending = false;
+        isSending  = false;
         sendBtn.disabled = false;
         input.focus();
         scrollToBottom();
     }
+}
+
+// ─── MARKDOWN CLEANER ────────────────────────────────────────
+// Bersihkan semua simbol markdown dari respons AI.
+
+function cleanMarkdown(text) {
+    return text
+        // Hapus code block triple backtick (beserta isinya diganti teks bersih)
+        .replace(/```[\w]*\n?([\s\S]*?)```/g, (_, code) => code.trim())
+        // Hapus heading ### ## #
+        .replace(/^#{1,6}\s+/gm, "")
+        // Hapus bold **teks** atau __teks__
+        .replace(/\*\*(.+?)\*\*/gs, "$1")
+        .replace(/__(.+?)__/gs, "$1")
+        // Hapus italic *teks* atau _teks_ (hati-hati tidak menghapus bullet)
+        .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/gs, "$1")
+        .replace(/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/gs, "$1")
+        // Hapus strikethrough ~~teks~~
+        .replace(/~~(.+?)~~/g, "$1")
+        // Hapus inline backtick `kode`
+        .replace(/`(.+?)`/g, "$1")
+        // Bullet * atau - di awal baris → tetap ada tapi tanpa simbol bintang
+        .replace(/^[\*\-]\s+/gm, "• ")
+        // Hapus numbered list prefix "1. " → biarkan teks
+        .replace(/^\d+\.\s+/gm, "")
+        // Hapus > blockquote
+        .replace(/^>\s+/gm, "")
+        // Hapus --- / *** horizontal rule
+        .replace(/^[-\*]{3,}\s*$/gm, "")
+        // Hapus [teks](url) link markdown → hanya teks
+        .replace(/\[(.+?)\]\(.*?\)/g, "$1")
+        // Hapus <br> atau tag HTML sederhana
+        .replace(/<[^>]+>/g, "")
+        // Rapikan baris kosong berlebih
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
 }
 
 // ─── RENDER HELPERS ──────────────────────────────────────────
@@ -238,6 +361,9 @@ function renderMessage(sender, text, animate) {
     const messagesEl = document.getElementById("messages");
     const typingEl   = document.getElementById("typing");
     if (!messagesEl) return;
+
+    // Bersihkan markdown hanya untuk pesan bot
+    const displayText = sender === "bot" ? cleanMarkdown(text) : text;
 
     const div = document.createElement("div");
     div.className = `message ${sender}`;
@@ -251,16 +377,19 @@ function renderMessage(sender, text, animate) {
         avatar.textContent = "U";
     }
 
-    const body    = document.createElement("div");
-    body.className = "msg-body";
+    const body          = document.createElement("div");
+    body.className      = "msg-body";
 
-    const label   = document.createElement("div");
-    label.className = "msg-sender";
-    label.textContent = sender === "bot" ? "gemini" : "you";
+    const label         = document.createElement("div");
+    label.className     = "msg-sender";
+    label.textContent   = sender === "bot" ? activeTenant.name.toLowerCase() : "you";
 
-    const content = document.createElement("div");
-    content.className = "msg-content";
-    content.textContent = text;
+    const content       = document.createElement("div");
+    content.className   = "msg-content";
+
+    // Render teks dengan baris baru yang proper (gunakan innerText trick)
+    content.style.whiteSpace = "pre-wrap";
+    content.textContent = displayText;
 
     body.appendChild(label);
     body.appendChild(content);
@@ -340,7 +469,7 @@ function renderSidebar() {
         group.className = "history-group";
 
         const lbl = document.createElement("div");
-        lbl.className = "history-group-label";
+        lbl.className   = "history-group-label";
         lbl.textContent = labels[key];
         group.appendChild(lbl);
 
@@ -417,12 +546,15 @@ function autoResizeTextarea() {
 // ─── UTILS ───────────────────────────────────────────────────
 
 function escapeHtml(str = "") {
-    return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    return String(str)
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;");
 }
 
 function formatRelTime(dateStr) {
     if (!dateStr) return "";
-    const d = new Date(dateStr), now = new Date();
+    const d    = new Date(dateStr), now = new Date();
     const mins = Math.floor((now - d) / 60000);
     const hrs  = Math.floor(mins / 60);
     const days = Math.floor(hrs / 24);
@@ -435,7 +567,7 @@ function formatRelTime(dateStr) {
 }
 
 function groupByTime(list) {
-    const g = { today:[], yesterday:[], older:[] };
+    const g   = { today:[], yesterday:[], older:[] };
     const now = new Date();
     const tod = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yes = new Date(tod - 86400000);
@@ -450,28 +582,19 @@ function groupByTime(list) {
 
 function pickIcon(title = "") {
     const t = title.toLowerCase();
-    if (/kode|code|debug/.test(t))    return "💻";
-    if (/tulis|cerita|esai/.test(t))  return "✍️";
-    if (/analisis|data/.test(t))      return "📊";
-    if (/riset|cari/.test(t))         return "🔍";
-    if (/ide|brainstorm/.test(t))     return "💡";
+    if (/kode|code|debug/.test(t))       return "💻";
+    if (/tulis|cerita|esai/.test(t))     return "✍️";
+    if (/analisis|data/.test(t))         return "📊";
+    if (/riset|cari/.test(t))            return "🔍";
+    if (/ide|brainstorm/.test(t))        return "💡";
+    if (/sepatu|toko/.test(t))           return "👟";
+    if (/klinik|sehat|dokter/.test(t))   return "🏥";
     return "💬";
 }
 
 // ─── MAIN ────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", async () => {
-    // Load nama tenant dari server
-    try {
-        const config = await apiFetch("/api/chatbot/config");
-        const brandName = document.querySelector(".brand-name");
-        if (brandName && config.tenant) {
-            brandName.textContent = `Gemini — ${config.tenant}`;
-        }
-    } catch (err) {
-        console.warn("Config tenant:", err.message);
-    }
-
     await init();
 
     document.getElementById("sidebar-toggle")?.addEventListener("click", toggleSidebar);

@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGenius — Multi-Tenant AI Chatbot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* ── RESET ── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        /* ── TOKENS ── */
+        :root {
+            --bg:          #09090f;
+            --bg-surface:  #111118;
+            --bg-card:     #141420;
+            --border:      rgba(255,255,255,0.07);
+            --border-md:   rgba(255,255,255,0.12);
+            --text:        #f0f0f5;
+            --text-2:      #9090aa;
+            --text-3:      #55556a;
+            --accent-g:    #4fc3a1;
+            --accent-p:    #7c6af7;
+            --accent-b:    #4fc3f7;
+            --r-sm:  8px;
+            --r-md:  14px;
+            --r-lg:  20px;
+            --r-xl:  28px;
+        }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        /* ── AMBIENT ORBS ── */
+        .orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+        .orb  { position: absolute; border-radius: 50%; filter: blur(100px); }
+        .o1 { width: 700px; height: 700px; background: var(--accent-p); opacity: 0.04; top: -300px; left: -200px; animation: drift 22s ease-in-out infinite; }
+        .o2 { width: 500px; height: 500px; background: var(--accent-g); opacity: 0.05; bottom: 0; right: -150px; animation: drift 22s ease-in-out infinite reverse; animation-delay: -11s; }
+        .o3 { width: 350px; height: 350px; background: var(--accent-b); opacity: 0.04; top: 60%; left: 40%; animation: drift 18s ease-in-out infinite; animation-delay: -6s; }
+        @keyframes drift {
+            0%,100% { transform: translate(0,0); }
+            33% { transform: translate(50px,-40px); }
+            66% { transform: translate(-30px,50px); }
+        }
+
+        /* ── LAYOUT ── */
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+        /* ── NAV ── */
+        nav {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(9,9,15,0.88); backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-inner {
+            max-width: 1100px; margin: 0 auto; padding: 0 24px;
+            height: 64px; display: flex; align-items: center; justify-content: space-between;
+        }
+        .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+        .nav-gem {
+            width: 32px; height: 32px; border-radius: 9px;
+            background: linear-gradient(135deg, var(--accent-g), var(--accent-b), var(--accent-p));
+            display: flex; align-items: center; justify-content: center;
+        }
+        .nav-gem svg { width: 16px; height: 16px; fill: white; }
+        .nav-brand { font-size: 16px; font-weight: 700; letter-spacing: -0.03em; color: var(--text); }
+        .nav-links { display: flex; align-items: center; gap: 28px; }
+        .nav-links a { font-size: 13.5px; color: var(--text-2); text-decoration: none; transition: color 0.2s; }
+        .nav-links a:hover { color: var(--text); }
+        .nav-cta {
+            background: var(--accent-p); color: white; border: none; border-radius: var(--r-sm);
+            padding: 8px 18px; font-family: 'Sora', sans-serif; font-size: 13.5px; font-weight: 500;
+            cursor: pointer; text-decoration: none; transition: all 0.2s;
+        }
+        .nav-cta:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+        /* ── HERO ── */
+        .hero {
+            padding: 100px 0 80px;
+            text-align: center;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 7px;
+            font-size: 11.5px; font-family: 'JetBrains Mono', monospace;
+            color: var(--accent-g); background: rgba(79,195,161,0.1);
+            border: 1px solid rgba(79,195,161,0.22); border-radius: 20px;
+            padding: 5px 14px; margin-bottom: 28px; letter-spacing: 0.04em;
+            animation: fade-in 0.5s both;
+        }
+        .hero-badge span { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-g); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
+
+        .hero h1 {
+            font-size: clamp(38px, 6vw, 66px); font-weight: 700;
+            letter-spacing: -0.04em; line-height: 1.1;
+            margin-bottom: 22px; max-width: 800px;
+            background: linear-gradient(135deg, #f0f0f5 20%, #6060a0 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+            animation: fade-up 0.6s 0.1s both;
+        }
+        .hero p {
+            font-size: 17px; color: var(--text-2); max-width: 520px;
+            line-height: 1.7; margin-bottom: 40px; font-weight: 300;
+            animation: fade-up 0.6s 0.2s both;
+        }
+        .hero-actions {
+            display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+            animation: fade-up 0.6s 0.3s both;
+        }
+        .btn-primary {
+            background: var(--accent-p); color: white; border: none;
+            border-radius: var(--r-sm); padding: 12px 26px;
+            font-family: 'Sora', sans-serif; font-size: 14.5px; font-weight: 600;
+            cursor: pointer; text-decoration: none; transition: all 0.2s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .btn-primary:hover { filter: brightness(1.15); transform: translateY(-2px); box-shadow: 0 12px 40px rgba(124,106,247,0.3); }
+        .btn-primary svg { width: 16px; height: 16px; stroke: white; fill: none; stroke-width: 2; }
+
+        .btn-secondary {
+            background: transparent; color: var(--text-2);
+            border: 1px solid var(--border-md); border-radius: var(--r-sm);
+            padding: 12px 26px; font-family: 'Sora', sans-serif;
+            font-size: 14.5px; font-weight: 500; cursor: pointer;
+            text-decoration: none; transition: all 0.2s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .btn-secondary:hover { border-color: rgba(255,255,255,0.25); color: var(--text); background: rgba(255,255,255,0.04); }
+
+        /* ── HERO PREVIEW ── */
+        .hero-preview {
+            margin-top: 64px; width: 100%; max-width: 860px;
+            border-radius: var(--r-xl); overflow: hidden;
+            border: 1px solid var(--border-md);
+            background: var(--bg-surface);
+            box-shadow: 0 40px 120px rgba(0,0,0,0.6);
+            animation: fade-up 0.8s 0.4s both;
+        }
+        .preview-bar {
+            background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border);
+            padding: 12px 16px; display: flex; align-items: center; gap: 8px;
+        }
+        .dot-r { width: 10px; height: 10px; border-radius: 50%; background: #ff5f57; }
+        .dot-y { width: 10px; height: 10px; border-radius: 50%; background: #febc2e; }
+        .dot-g { width: 10px; height: 10px; border-radius: 50%; background: #28c840; }
+        .preview-url {
+            flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+            border-radius: 6px; padding: 4px 12px; text-align: center;
+            font-size: 11.5px; font-family: 'JetBrains Mono', monospace; color: var(--text-3);
+        }
+        .preview-body {
+            display: flex; height: 360px;
+        }
+        .preview-sidebar {
+            width: 220px; border-right: 1px solid var(--border);
+            padding: 14px; flex-shrink: 0;
+        }
+        .preview-sidebar-label {
+            font-size: 9px; font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.1em; color: var(--text-3); text-transform: uppercase; margin-bottom: 10px;
+        }
+        .preview-tenant-badge {
+            display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+            border-radius: var(--r-sm); background: rgba(79,195,161,0.1);
+            border: 1px solid rgba(79,195,161,0.15); margin-bottom: 12px;
+        }
+        .preview-tenant-badge span { font-size: 13px; }
+        .preview-tenant-badge p { font-size: 11px; font-weight: 600; color: var(--accent-g); }
+        .preview-history-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 8px; border-radius: var(--r-sm); margin-bottom: 4px;
+        }
+        .preview-history-item.active { background: rgba(79,195,161,0.08); }
+        .phi { font-size: 14px; }
+        .pht { font-size: 11.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .preview-history-item.active .pht { color: var(--accent-g); }
+        .preview-chat {
+            flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 16px; overflow: hidden;
+        }
+        .pchat-msg { display: flex; gap: 10px; }
+        .pchat-msg.user { flex-direction: row-reverse; }
+        .pchat-avatar {
+            width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 12px;
+        }
+        .pchat-msg.bot .pchat-avatar { background: linear-gradient(135deg, var(--accent-g), var(--accent-b)); }
+        .pchat-msg.bot .pchat-avatar svg { width: 14px; height: 14px; fill: white; }
+        .pchat-msg.user .pchat-avatar { background: var(--bg-card); border: 1px solid var(--border-md); color: var(--text-2); font-weight: 600; font-size: 11px; }
+        .pchat-bubble {
+            max-width: 70%; padding: 9px 13px; border-radius: 12px;
+            font-size: 12.5px; line-height: 1.6;
+        }
+        .pchat-msg.bot  .pchat-bubble { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+        .pchat-msg.user .pchat-bubble { background: rgba(79,195,161,0.12); color: var(--text); border: 1px solid rgba(79,195,161,0.2); }
+        .pchat-input {
+            margin-top: auto; display: flex; align-items: center; gap: 8px;
+            background: var(--bg-card); border: 1px solid var(--border-md); border-radius: 14px;
+            padding: 9px 14px;
+        }
+        .pchat-input p { flex: 1; font-size: 12px; color: var(--text-3); }
+        .pchat-send {
+            width: 28px; height: 28px; border-radius: 8px; background: var(--accent-g);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .pchat-send svg { width: 13px; height: 13px; stroke: white; fill: none; stroke-width: 2.5; }
+
+        /* ── BRANDS ── */
+        .brands { padding: 32px 0 60px; text-align: center; }
+        .brands p { font-size: 12px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 20px; }
+        .brands-row { display: flex; align-items: center; justify-content: center; gap: 32px; flex-wrap: wrap; }
+        .brand-pill {
+            font-size: 13px; font-weight: 500; color: var(--text-3);
+            border: 1px solid var(--border); border-radius: 20px; padding: 6px 18px;
+            transition: all 0.2s;
+        }
+        .brand-pill:hover { color: var(--text-2); border-color: var(--border-md); }
+
+        /* ── SECTION HEADER ── */
+        .s-header { text-align: center; margin-bottom: 56px; }
+        .s-label {
+            font-size: 11px; font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.1em; color: var(--accent-p); text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+        .s-header h2 {
+            font-size: clamp(26px, 4vw, 40px); font-weight: 700; letter-spacing: -0.03em;
+            margin-bottom: 16px; line-height: 1.2;
+        }
+        .s-header p { font-size: 15.5px; color: var(--text-2); max-width: 540px; margin: 0 auto; line-height: 1.7; font-weight: 300; }
+
+        /* ── FEATURES ── */
+        .features { padding: 80px 0; }
+        .features-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+        }
+        .feat-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--r-lg); padding: 24px 22px;
+            transition: all 0.25s;
+        }
+        .feat-card:hover { border-color: var(--border-md); transform: translateY(-3px); background: #171724; }
+        .feat-icon {
+            width: 44px; height: 44px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; margin-bottom: 16px;
+        }
+        .feat-card:nth-child(1) .feat-icon { background: rgba(124,106,247,0.12); }
+        .feat-card:nth-child(2) .feat-icon { background: rgba(79,195,161,0.12); }
+        .feat-card:nth-child(3) .feat-icon { background: rgba(79,195,247,0.12); }
+        .feat-card:nth-child(4) .feat-icon { background: rgba(171,71,188,0.12); }
+        .feat-card:nth-child(5) .feat-icon { background: rgba(255,183,77,0.12); }
+        .feat-card:nth-child(6) .feat-icon { background: rgba(239,83,80,0.12); }
+        .feat-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.01em; }
+        .feat-card p  { font-size: 13px; color: var(--text-2); line-height: 1.65; }
+
+        /* ── TENANTS SECTION ── */
+        .tenants { padding: 80px 0; }
+        .tenants-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+        .tenant-card {
+            border-radius: var(--r-xl); border: 1px solid var(--border);
+            overflow: hidden; position: relative;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .tenant-card:hover { transform: translateY(-5px); }
+
+        .tenant-card.klinik { background: linear-gradient(160deg, #0d1f1a 0%, var(--bg-card) 60%); }
+        .tenant-card.klinik:hover { box-shadow: 0 24px 80px rgba(79,195,161,0.15); border-color: rgba(79,195,161,0.25); }
+
+        .tenant-card.sepatu { background: linear-gradient(160deg, #130f2a 0%, var(--bg-card) 60%); }
+        .tenant-card.sepatu:hover { box-shadow: 0 24px 80px rgba(124,106,247,0.15); border-color: rgba(124,106,247,0.25); }
+
+        .tenant-card-head {
+            padding: 28px 28px 20px; display: flex; align-items: center; gap: 14px;
+        }
+        .tenant-emoji { font-size: 36px; }
+        .tenant-name  { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+        .klinik .tenant-name { color: #4fc3a1; }
+        .sepatu .tenant-name { color: #9d8df7; }
+        .tenant-sub   { font-size: 12.5px; color: var(--text-2); margin-top: 3px; }
+
+        .tenant-chat-demo {
+            padding: 0 20px 24px; display: flex; flex-direction: column; gap: 10px;
+        }
+        .demo-msg {
+            display: flex; gap: 8px; align-items: flex-start;
+        }
+        .demo-msg.user { flex-direction: row-reverse; }
+        .demo-av {
+            width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600;
+        }
+        .klinik .demo-msg.bot .demo-av { background: linear-gradient(135deg, #4fc3a1, #4fc3f7); }
+        .sepatu .demo-msg.bot .demo-av { background: linear-gradient(135deg, #7c6af7, #4fc3f7); }
+        .demo-msg.bot  .demo-av svg { width: 13px; height: 13px; fill: white; }
+        .demo-msg.user .demo-av { background: rgba(255,255,255,0.06); color: var(--text-2); }
+
+        .demo-bubble {
+            max-width: 80%; padding: 8px 12px; border-radius: 10px;
+            font-size: 12px; line-height: 1.55; color: var(--text);
+        }
+        .klinik .demo-msg.bot  .demo-bubble { background: rgba(79,195,161,0.1);  border: 1px solid rgba(79,195,161,0.15); }
+        .klinik .demo-msg.user .demo-bubble { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-2); }
+        .sepatu .demo-msg.bot  .demo-bubble { background: rgba(124,106,247,0.1); border: 1px solid rgba(124,106,247,0.15); }
+        .sepatu .demo-msg.user .demo-bubble { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-2); }
+
+        .tenant-card-footer {
+            margin: 0 20px 20px; padding: 12px 16px;
+            border-radius: var(--r-md); display: flex; align-items: center; justify-content: space-between;
+            font-size: 12.5px;
+        }
+        .klinik .tenant-card-footer { background: rgba(79,195,161,0.08); border: 1px solid rgba(79,195,161,0.15); }
+        .sepatu .tenant-card-footer { background: rgba(124,106,247,0.08); border: 1px solid rgba(124,106,247,0.15); }
+        .tc-footer-left { color: var(--text-2); }
+        .tc-footer-right { font-weight: 600; font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+        .klinik .tc-footer-right { color: #4fc3a1; }
+        .sepatu .tc-footer-right { color: #9d8df7; }
+
+        /* ── HOW IT WORKS ── */
+        .how { padding: 80px 0; }
+        .how-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; position: relative; }
+        .how-steps::before {
+            content: '';
+            position: absolute; top: 28px; left: 12%; right: 12%;
+            height: 1px; background: linear-gradient(90deg, transparent, var(--border-md) 20%, var(--border-md) 80%, transparent);
+        }
+        .step-card { text-align: center; padding: 8px; }
+        .step-num {
+            width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 16px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; font-weight: 700; position: relative; z-index: 1;
+        }
+        .step-card:nth-child(1) .step-num { background: rgba(124,106,247,0.15); color: var(--accent-p); border: 1px solid rgba(124,106,247,0.25); }
+        .step-card:nth-child(2) .step-num { background: rgba(79,195,161,0.15); color: var(--accent-g); border: 1px solid rgba(79,195,161,0.25); }
+        .step-card:nth-child(3) .step-num { background: rgba(79,195,247,0.15); color: var(--accent-b); border: 1px solid rgba(79,195,247,0.25); }
+        .step-card:nth-child(4) .step-num { background: rgba(171,71,188,0.15); color: #ab47bc; border: 1px solid rgba(171,71,188,0.25); }
+        .step-card h3 { font-size: 14.5px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.01em; }
+        .step-card p  { font-size: 12.5px; color: var(--text-2); line-height: 1.6; }
+
+        /* ── TECH STACK ── */
+        .tech { padding: 60px 0 80px; }
+        .tech-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        .tech-item {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--r-md); padding: 18px 16px;
+            display: flex; align-items: center; gap: 12px;
+            transition: all 0.2s;
+        }
+        .tech-item:hover { border-color: var(--border-md); }
+        .tech-icon { font-size: 24px; flex-shrink: 0; }
+        .tech-name { font-size: 13px; font-weight: 600; }
+        .tech-desc { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+        /* ── CTA ── */
+        .cta-section {
+            padding: 80px 0 100px;
+        }
+        .cta-box {
+            background: linear-gradient(135deg, #0d1020 0%, #141028 50%, #101a18 100%);
+            border: 1px solid var(--border-md); border-radius: var(--r-xl);
+            padding: 60px 40px; text-align: center;
+            position: relative; overflow: hidden;
+        }
+        .cta-box::before {
+            content: '';
+            position: absolute; top: -100px; left: 50%; transform: translateX(-50%);
+            width: 400px; height: 400px; border-radius: 50%;
+            background: var(--accent-p); opacity: 0.08; filter: blur(80px);
+            pointer-events: none;
+        }
+        .cta-box h2 { font-size: clamp(24px, 4vw, 38px); font-weight: 700; letter-spacing: -0.03em; margin-bottom: 14px; }
+        .cta-box p  { font-size: 15px; color: var(--text-2); margin-bottom: 36px; font-weight: 300; }
+        .cta-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+        .btn-cta-klinik {
+            background: rgba(79,195,161,0.12); color: var(--accent-g);
+            border: 1px solid rgba(79,195,161,0.3); border-radius: var(--r-sm);
+            padding: 13px 28px; font-family: 'Sora', sans-serif;
+            font-size: 14.5px; font-weight: 600; cursor: pointer; text-decoration: none;
+            transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+        }
+        .btn-cta-klinik:hover { background: rgba(79,195,161,0.22); transform: translateY(-2px); box-shadow: 0 10px 40px rgba(79,195,161,0.2); }
+
+        .btn-cta-sepatu {
+            background: rgba(124,106,247,0.12); color: var(--accent-p);
+            border: 1px solid rgba(124,106,247,0.3); border-radius: var(--r-sm);
+            padding: 13px 28px; font-family: 'Sora', sans-serif;
+            font-size: 14.5px; font-weight: 600; cursor: pointer; text-decoration: none;
+            transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+        }
+        .btn-cta-sepatu:hover { background: rgba(124,106,247,0.22); transform: translateY(-2px); box-shadow: 0 10px 40px rgba(124,106,247,0.2); }
+
+        /* ── FOOTER ── */
+        footer {
+            border-top: 1px solid var(--border); padding: 32px 0;
+        }
+        .footer-inner {
+            max-width: 1100px; margin: 0 auto; padding: 0 24px;
+            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+        }
+        .footer-brand { display: flex; align-items: center; gap: 9px; }
+        .footer-brand p { font-size: 13.5px; font-weight: 600; color: var(--text); }
+        .footer-copy { font-size: 12px; color: var(--text-3); }
+        .footer-links { display: flex; gap: 20px; }
+        .footer-links a { font-size: 12.5px; color: var(--text-3); text-decoration: none; transition: color 0.2s; }
+        .footer-links a:hover { color: var(--text-2); }
+
+        /* ── ANIMATIONS ── */
+        @keyframes fade-in  { from{opacity:0} to{opacity:1} }
+        @keyframes fade-up  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+        /* ── MOBILE ── */
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .features-grid, .tenants-grid, .tech-grid { grid-template-columns: 1fr; }
+            .how-steps { grid-template-columns: repeat(2, 1fr); }
+            .how-steps::before { display: none; }
+            .hero { padding: 64px 0 48px; }
+            .preview-sidebar { display: none; }
+        }
+        @media (max-width: 520px) {
+            .how-steps { grid-template-columns: 1fr; }
+            .cta-box { padding: 36px 20px; }
+        }
+
+        /* ══════════════════════════════════════════
+           PREMIUM SCROLL ANIMATIONS
+        ══════════════════════════════════════════ */
+
+        /* — Custom cursor — */
+        .cursor-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--accent-p);
+            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: transform 0.08s, opacity 0.3s;
+        }
+        .cursor-ring {
+            width: 36px; height: 36px; border-radius: 50%;
+            border: 1.5px solid rgba(124,106,247,0.5);
+            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9998;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s, border-color 0.3s, opacity 0.3s;
+        }
+        .cursor-ring.hover {
+            width: 56px; height: 56px;
+            border-color: rgba(79,195,161,0.6);
+            background: rgba(79,195,161,0.04);
+        }
+        @media (pointer: coarse) { .cursor-dot, .cursor-ring { display: none; } }
+
+        /* — Scroll progress bar — */
+        #scroll-progress {
+            position: fixed; top: 0; left: 0; height: 2px; z-index: 200;
+            background: linear-gradient(90deg, var(--accent-g), var(--accent-p), var(--accent-b));
+            width: 0%; transition: width 0.05s linear;
+            box-shadow: 0 0 8px rgba(124,106,247,0.6);
+        }
+
+        /* — Reveal base states — */
+        [data-reveal] {
+            opacity: 0;
+            will-change: opacity, transform;
+        }
+        [data-reveal="up"]     { transform: translateY(40px); }
+        [data-reveal="left"]   { transform: translateX(-40px); }
+        [data-reveal="right"]  { transform: translateX(40px); }
+        [data-reveal="scale"]  { transform: scale(0.92); }
+        [data-reveal="fade"]   { }
+
+        [data-reveal].revealed {
+            opacity: 1;
+            transform: none;
+            transition: opacity 0.75s cubic-bezier(0.22,1,0.36,1),
+                        transform 0.75s cubic-bezier(0.22,1,0.36,1);
+        }
+
+        /* stagger children */
+        [data-stagger] > * {
+            opacity: 0;
+            transform: translateY(30px);
+            will-change: opacity, transform;
+        }
+        [data-stagger].revealed > * {
+            opacity: 1;
+            transform: none;
+        }
+
+        /* — Section highlight line — */
+        .section-line {
+            display: block; height: 1px; width: 0;
+            background: linear-gradient(90deg, var(--accent-p), var(--accent-g));
+            margin: 0 auto 20px;
+            transition: width 0.9s cubic-bezier(0.22,1,0.36,1);
+            border-radius: 2px;
+        }
+        .section-line.revealed { width: 80px; }
+
+        /* — Parallax wrapper — */
+        .parallax-el { will-change: transform; }
+
+        /* — Floating number counter — */
+        .count-up { display: inline-block; }
+
+        /* — Gradient text shimmer on scroll — */
+        @keyframes shimmer-pass {
+            0%   { background-position: -200% center; }
+            100% { background-position: 200% center; }
+        }
+        .shimmer-text {
+            background: linear-gradient(90deg,
+                #f0f0f5 0%, #f0f0f5 30%,
+                var(--accent-p) 50%,
+                #f0f0f5 70%, #f0f0f5 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+            animation: shimmer-pass 3s linear infinite;
+            animation-play-state: paused;
+        }
+        .shimmer-text.active { animation-play-state: running; }
+
+        /* — Magnetic button inner — */
+        .mag-btn { display: inline-block; transition: transform 0.25s cubic-bezier(0.22,1,0.36,1); }
+
+        /* — Floating particles canvas — */
+        #particle-canvas {
+            position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.35;
+        }
+
+        /* — Scrolling marquee for brands — */
+        .marquee-track {
+            overflow: hidden; position: relative;
+        }
+        .marquee-inner {
+            display: flex; gap: 32px; width: max-content;
+            animation: marquee-scroll 20s linear infinite;
+        }
+        @keyframes marquee-scroll {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .marquee-track:hover .marquee-inner { animation-play-state: paused; }
+
+        /* — Morphing border glow on section header — */
+        .s-header { position: relative; }
+        .s-header::after {
+            content: '';
+            display: block; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-md), transparent);
+            margin-top: 48px;
+        }
+
+        /* — Card tilt wrapper — */
+        .tilt-card { transform-style: preserve-3d; }
+
+        /* — Number ticker for stats — */
+        .stat-bar {
+            display: flex; gap: 32px; justify-content: center;
+            flex-wrap: wrap; padding: 32px 0 0; margin-top: 8px;
+        }
+        .stat-item { text-align: center; }
+        .stat-num {
+            font-size: 32px; font-weight: 700; letter-spacing: -0.04em;
+            background: linear-gradient(135deg, var(--text) 0%, var(--text-2) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .stat-label { font-size: 11.5px; color: var(--text-3); margin-top: 4px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.06em; }
+        .stat-divider { width: 1px; background: var(--border-md); align-self: stretch; }
+
+        /* — Scrolling line connector (How it works) — */
+        .step-connector {
+            position: absolute; top: 28px; left: 12%; right: 12%; height: 1px;
+            overflow: hidden;
+        }
+        .step-connector-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-p), var(--accent-g), var(--accent-b));
+            width: 0%;
+            transition: width 1.2s cubic-bezier(0.22,1,0.36,1) 0.3s;
+        }
+        .step-connector-fill.revealed { width: 100%; }
+
+        /* — Hover underline links — */
+        .animated-link {
+            position: relative; display: inline-block;
+        }
+        .animated-link::after {
+            content: ''; position: absolute; bottom: -2px; left: 0;
+            width: 0; height: 1px;
+            background: var(--accent-g);
+            transition: width 0.3s ease;
+        }
+        .animated-link:hover::after { width: 100%; }
+
+    </style>
+</head>
+<body>
+
+<!-- Scroll progress -->
+<div id="scroll-progress"></div>
+
+<!-- Custom cursor -->
+<div class="cursor-dot" id="cursor-dot"></div>
+<div class="cursor-ring" id="cursor-ring"></div>
+
+<!-- Particle canvas -->
+<canvas id="particle-canvas"></canvas>
+
+<!-- Ambient -->
+<div class="orbs">
+    <div class="orb o1"></div>
+    <div class="orb o2"></div>
+    <div class="orb o3"></div>
+</div>
+
+<!-- ── NAV ── -->
+<nav>
+    <div class="nav-inner">
+        <a class="nav-logo" href="#">
+            <div class="nav-gem">
+                <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            </div>
+            <span class="nav-brand">ChatGenius</span>
+        </a>
+        <div class="nav-links">
+            <a href="#fitur" class="animated-link">Fitur</a>
+            <a href="#layanan" class="animated-link">Layanan</a>
+            <a href="#cara-kerja" class="animated-link">Cara Kerja</a>
+            <a href="#teknologi" class="animated-link">Teknologi</a>
+        </div>
+        <a href="tenant-select.html" class="nav-cta mag-btn">Mulai Sekarang →</a>
+    </div>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero container">
+    <div class="hero-badge">
+        <span></span> Multi-Tenant AI Chatbot · Powered by Gemini
+    </div>
+    <h1 class="shimmer-text">Asisten AI Cerdas untuk Setiap Bisnis Anda</h1>
+    <p>Satu platform, banyak layanan. Setiap bisnis mendapat asisten AI dengan kepribadian dan keahlian yang disesuaikan khusus.</p>
+    <div class="hero-actions">
+        <a href="tenant-select.html" class="btn-primary mag-btn">
+            Coba Sekarang Gratis
+            <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a>
+        <a href="#layanan" class="btn-secondary mag-btn">
+            Lihat Demo
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+        </a>
+    </div>
+
+    <!-- Stats -->
+    <div class="stat-bar" data-reveal="up" data-delay="500">
+        <div class="stat-item">
+            <div class="stat-num"><span class="count-up" data-target="2">0</span>+</div>
+            <div class="stat-label">LAYANAN AKTIF</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <div class="stat-num"><span class="count-up" data-target="99">0</span>%</div>
+            <div class="stat-label">UPTIME</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <div class="stat-num">&lt;<span class="count-up" data-target="1">0</span>s</div>
+            <div class="stat-label">RESPONSE TIME</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <div class="stat-num"><span class="count-up" data-target="6">0</span>+</div>
+            <div class="stat-label">INDUSTRI</div>
+        </div>
+    </div>
+
+    <!-- App Preview -->
+    <div class="hero-preview parallax-el" data-parallax-speed="0.08">
+        <div class="preview-bar">
+            <div class="dot-r"></div>
+            <div class="dot-y"></div>
+            <div class="dot-g"></div>
+            <div class="preview-url">localhost:3000 · ChatGenius</div>
+        </div>
+        <div class="preview-body">
+            <div class="preview-sidebar">
+                <div class="preview-sidebar-label">Riwayat Chat</div>
+                <div class="preview-tenant-badge">
+                    <span>🏥</span>
+                    <p>Klinik Sehat</p>
+                </div>
+                <div class="preview-history-item active">
+                    <span class="phi">🏥</span>
+                    <p class="pht">Jadwal dokter spesialis</p>
+                </div>
+                <div class="preview-history-item">
+                    <span class="phi">💬</span>
+                    <p class="pht">Tips hidup sehat</p>
+                </div>
+                <div class="preview-history-item">
+                    <span class="phi">💬</span>
+                    <p class="pht">Layanan klinik kami</p>
+                </div>
+            </div>
+            <div class="preview-chat">
+                <div class="pchat-msg bot">
+                    <div class="pchat-avatar">
+                        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    </div>
+                    <div class="pchat-bubble">Selamat datang di Klinik Sehat! Saya siap membantu Anda dengan informasi layanan dan konsultasi umum.</div>
+                </div>
+                <div class="pchat-msg user">
+                    <div class="pchat-avatar">U</div>
+                    <div class="pchat-bubble">Apakah tersedia dokter spesialis jantung?</div>
+                </div>
+                <div class="pchat-msg bot">
+                    <div class="pchat-avatar">
+                        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    </div>
+                    <div class="pchat-bubble">Ya, kami memiliki dokter spesialis jantung yang berpengalaman. Praktik setiap Senin, Rabu, dan Jumat mulai pukul 09.00–14.00. Ingin saya bantu jadwalkan konsultasi?</div>
+                </div>
+                <div class="pchat-input">
+                    <p>Kirim pesan ke Klinik Sehat...</p>
+                    <div class="pchat-send">
+                        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── BRANDS (marquee) ── -->
+<section class="brands container">
+    <p>COCOK UNTUK BERBAGAI INDUSTRI</p>
+    <div class="marquee-track">
+        <div class="marquee-inner">
+            <span class="brand-pill">🏥 Klinik &amp; Rumah Sakit</span>
+            <span class="brand-pill">👟 Toko Retail</span>
+            <span class="brand-pill">🏨 Perhotelan</span>
+            <span class="brand-pill">📚 Pendidikan</span>
+            <span class="brand-pill">🏦 Keuangan</span>
+            <span class="brand-pill">🛒 E-Commerce</span>
+            <!-- duplicate for seamless loop -->
+            <span class="brand-pill">🏥 Klinik &amp; Rumah Sakit</span>
+            <span class="brand-pill">👟 Toko Retail</span>
+            <span class="brand-pill">🏨 Perhotelan</span>
+            <span class="brand-pill">📚 Pendidikan</span>
+            <span class="brand-pill">🏦 Keuangan</span>
+            <span class="brand-pill">🛒 E-Commerce</span>
+        </div>
+    </div>
+</section>
+
+<!-- ── FEATURES ── -->
+<section class="features" id="fitur">
+    <div class="container">
+        <div class="s-header" data-reveal="up">
+            <span class="section-line"></span>
+            <div class="s-label">Fitur Unggulan</div>
+            <h2>Semua yang Anda Butuhkan dalam Satu Platform</h2>
+            <p>Dari manajemen percakapan hingga isolasi data antar tenant — semuanya sudah tersedia dan siap pakai.</p>
+        </div>
+        <div class="features-grid" data-stagger data-stagger-delay="80">
+            <div class="feat-card tilt-card">
+                <div class="feat-icon">🏢</div>
+                <h3>Multi-Tenant Terisolasi</h3>
+                <p>Setiap bisnis memiliki data, riwayat chat, dan kepribadian AI yang sepenuhnya terpisah dan aman.</p>
+            </div>
+            <div class="feat-card tilt-card">
+                <div class="feat-icon">🤖</div>
+                <h3>AI Khusus per Layanan</h3>
+                <p>System prompt berbeda untuk setiap tenant — Klinik Sehat bicara medis, Toko Sepatu bicara fashion.</p>
+            </div>
+            <div class="feat-card tilt-card">
+                <div class="feat-icon">💾</div>
+                <h3>Riwayat Persisten</h3>
+                <p>Semua percakapan tersimpan di PostgreSQL. Lanjutkan chat kapan saja dari sesi sebelumnya.</p>
+            </div>
+            <div class="feat-card tilt-card">
+                <div class="feat-icon">🔐</div>
+                <h3>Autentikasi API Key</h3>
+                <p>Setiap tenant diidentifikasi via API key unik. Keamanan berlapis tanpa konfigurasi rumit.</p>
+            </div>
+            <div class="feat-card tilt-card">
+                <div class="feat-icon">📱</div>
+                <h3>Responsif di Semua Device</h3>
+                <p>Tampilan sempurna di desktop maupun mobile. Sidebar adaptif dengan gesture yang intuitif.</p>
+            </div>
+            <div class="feat-card tilt-card">
+                <div class="feat-icon">⚡</div>
+                <h3>Respons Real-Time</h3>
+                <p>Integrasi Gemini API dengan latensi rendah. Typing indicator dan animasi yang membuat pengalaman terasa hidup.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── TENANTS ── -->
+<section class="tenants" id="layanan">
+    <div class="container">
+        <div class="s-header" data-reveal="up">
+            <span class="section-line"></span>
+            <div class="s-label">Layanan Aktif</div>
+            <h2>Dua Asisten AI, Satu Platform</h2>
+            <p>Pilih layanan yang Anda butuhkan. Setiap asisten dilatih dengan pengetahuan spesifik untuk domain bisnisnya.</p>
+        </div>
+        <div class="tenants-grid">
+            <div class="tenant-card klinik" data-reveal="left">
+                <div class="tenant-card-head">
+                    <div class="tenant-emoji">🏥</div>
+                    <div>
+                        <div class="tenant-name">Klinik Sehat</div>
+                        <div class="tenant-sub">Asisten Kesehatan Virtual</div>
+                    </div>
+                </div>
+                <div class="tenant-chat-demo">
+                    <div class="demo-msg user">
+                        <div class="demo-av">U</div>
+                        <div class="demo-bubble">Apa saja layanan dokter spesialis?</div>
+                    </div>
+                    <div class="demo-msg bot">
+                        <div class="demo-av"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+                        <div class="demo-bubble">Kami memiliki dokter spesialis jantung, penyakit dalam, anak, THT, dan kulit. Ingin saya bantu jadwalkan konsultasi?</div>
+                    </div>
+                </div>
+                <div class="tenant-card-footer">
+                    <span class="tc-footer-left">Aktif · Gemini 2.5 Flash</span>
+                    <span class="tc-footer-right">→ BUKA CHAT</span>
+                </div>
+            </div>
+
+            <div class="tenant-card sepatu" data-reveal="right">
+                <div class="tenant-card-head">
+                    <div class="tenant-emoji">👟</div>
+                    <div>
+                        <div class="tenant-name">Toko Sepatu Langkah</div>
+                        <div class="tenant-sub">Asisten Penjualan Personal</div>
+                    </div>
+                </div>
+                <div class="tenant-chat-demo">
+                    <div class="demo-msg user">
+                        <div class="demo-av">U</div>
+                        <div class="demo-bubble">Rekomendasikan sepatu lari untuk pemula.</div>
+                    </div>
+                    <div class="demo-msg bot">
+                        <div class="demo-av"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+                        <div class="demo-bubble">Untuk pemula, saya rekomendasikan Nike Revolution atau Adidas Duramo — ringan, nyaman, harga terjangkau. Berapa ukuran kaki Anda?</div>
+                    </div>
+                </div>
+                <div class="tenant-card-footer">
+                    <span class="tc-footer-left">Aktif · Gemini 2.5 Flash</span>
+                    <span class="tc-footer-right">→ BUKA CHAT</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── HOW IT WORKS ── -->
+<section class="how" id="cara-kerja">
+    <div class="container">
+        <div class="s-header" data-reveal="up">
+            <span class="section-line"></span>
+            <div class="s-label">Cara Kerja</div>
+            <h2>Mulai dalam 4 Langkah Mudah</h2>
+            <p>Tidak perlu konfigurasi rumit. Pilih layanan, mulai chat, dan dapatkan jawaban yang relevan.</p>
+        </div>
+        <div class="how-steps" data-stagger data-stagger-delay="120">
+            <!-- Replace the ::before pseudo with a real element we can animate -->
+            <div class="step-connector" style="position:absolute;top:28px;left:12%;right:12%;height:1px;overflow:hidden;">
+                <div class="step-connector-fill"></div>
+            </div>
+            <div class="step-card">
+                <div class="step-num">1</div>
+                <h3>Pilih Layanan</h3>
+                <p>Buka halaman utama dan pilih antara Klinik Sehat atau Toko Sepatu Langkah.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">2</div>
+                <h3>Masuk ke Chat</h3>
+                <p>Langsung diarahkan ke antarmuka chat dengan asisten yang sesuai layanan.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">3</div>
+                <h3>Kirim Pertanyaan</h3>
+                <p>Ketik pertanyaan Anda. AI menjawab berdasarkan domain keahlian spesifik layanan tersebut.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">4</div>
+                <h3>Riwayat Tersimpan</h3>
+                <p>Semua percakapan otomatis tersimpan. Lanjutkan kapan saja dari mana saja.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── TECH STACK ── -->
+<section class="tech" id="teknologi">
+    <div class="container">
+        <div class="s-header" data-reveal="up">
+            <span class="section-line"></span>
+            <div class="s-label">Teknologi</div>
+            <h2>Dibangun dengan Stack Modern</h2>
+            <p>Kombinasi teknologi terpilih untuk performa, skalabilitas, dan kemudahan pengembangan.</p>
+        </div>
+        <div class="tech-grid" data-stagger data-stagger-delay="60">
+            <div class="tech-item tilt-card"><div class="tech-icon">🟨</div><div><div class="tech-name">Vanilla JS</div><div class="tech-desc">Frontend ringan &amp; cepat</div></div></div>
+            <div class="tech-item tilt-card"><div class="tech-icon">🟢</div><div><div class="tech-name">Node.js + Express</div><div class="tech-desc">Backend REST API</div></div></div>
+            <div class="tech-item tilt-card"><div class="tech-icon">🐘</div><div><div class="tech-name">PostgreSQL</div><div class="tech-desc">Penyimpanan percakapan</div></div></div>
+            <div class="tech-item tilt-card"><div class="tech-icon">✨</div><div><div class="tech-name">Google Gemini</div><div class="tech-desc">AI language model</div></div></div>
+            <div class="tech-item tilt-card"><div class="tech-icon">🔷</div><div><div class="tech-name">Go (opsional)</div><div class="tech-desc">Backend alternatif</div></div></div>
+            <div class="tech-item tilt-card"><div class="tech-icon">🔑</div><div><div class="tech-name">API Key Auth</div><div class="tech-desc">Isolasi per tenant</div></div></div>
+            <div class="tech-item tilt-card"><div class="tech-icon">📦</div><div><div class="tech-name">Shared Schema</div><div class="tech-desc">Arsitektur multi-tenant</div></div></div>
+            <div class="tech-item tilt-card"><div class="tech-icon">🎨</div><div><div class="tech-name">CSS Variables</div><div class="tech-desc">Theming dinamis</div></div></div>
+        </div>
+    </div>
+</section>
+
+<!-- ── CTA ── -->
+<section class="cta-section">
+    <div class="container">
+        <div class="cta-box" data-reveal="scale">
+            <h2>Siap Mencoba Asisten AI Anda?</h2>
+            <p>Pilih layanan dan mulai percakapan pertama Anda sekarang — gratis, tanpa registrasi.</p>
+            <div class="cta-actions">
+                <a href="tenant-select.html?tenant=klinik" class="btn-cta-klinik mag-btn">🏥 Buka Klinik Sehat</a>
+                <a href="tenant-select.html?tenant=sepatu" class="btn-cta-sepatu mag-btn">👟 Buka Toko Sepatu Langkah</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+    <div class="footer-inner">
+        <div class="footer-brand">
+            <div class="nav-gem" style="width:26px;height:26px;border-radius:7px;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            </div>
+            <p>ChatGenius</p>
+        </div>
+        <span class="footer-copy">© 2026 ChatGenius · Multi-Tenant AI Chatbot</span>
+        <div class="footer-links">
+            <a href="tenant-select.html" class="animated-link">Pilih Layanan</a>
+            <a href="#fitur" class="animated-link">Fitur</a>
+            <a href="#teknologi" class="animated-link">Teknologi</a>
+        </div>
+    </div>
+</footer>
+
+<script>
+/* ══════════════════════════════════════════
+   PREMIUM ANIMATION ENGINE
+══════════════════════════════════════════ */
+
+/* ── 1. Scroll progress bar ── */
+const bar = document.getElementById('scroll-progress');
+window.addEventListener('scroll', () => {
+    const total = document.documentElement.scrollHeight - window.innerHeight;
+    bar.style.width = (window.scrollY / total * 100) + '%';
+}, { passive: true });
+
+/* ── 2. Custom cursor ── */
+const dot  = document.getElementById('cursor-dot');
+const ring = document.getElementById('cursor-ring');
+let mx = -100, my = -100, rx = -100, ry = -100;
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+(function cursorLoop() {
+    rx += (mx - rx) * 0.12;
+    ry += (my - ry) * 0.12;
+    dot.style.left  = mx + 'px';
+    dot.style.top   = my + 'px';
+    ring.style.left = rx + 'px';
+    ring.style.top  = ry + 'px';
+    requestAnimationFrame(cursorLoop);
+})();
+document.querySelectorAll('a, button, .feat-card, .tenant-card, .tech-item, .step-num').forEach(el => {
+    el.addEventListener('mouseenter', () => ring.classList.add('hover'));
+    el.addEventListener('mouseleave', () => ring.classList.remove('hover'));
+});
+
+/* ── 3. Smooth scroll for nav links ── */
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+        const target = document.querySelector(a.getAttribute('href'));
+        if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth' }); }
+    });
+});
+
+/* ── 4. Scroll reveal (IntersectionObserver) ── */
+const revealObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target;
+        const delay = parseInt(el.dataset.delay || 0);
+        setTimeout(() => {
+            el.classList.add('revealed');
+            /* activate section line */
+            const line = el.querySelector('.section-line');
+            if (line) line.classList.add('revealed');
+            /* activate step connector */
+            const fill = el.closest('.how-steps')?.querySelector('.step-connector-fill');
+            if (fill) fill.classList.add('revealed');
+        }, delay);
+        revealObserver.unobserve(el);
+    });
+}, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+
+document.querySelectorAll('[data-reveal]').forEach(el => revealObserver.observe(el));
+
+/* ── 5. Stagger children ── */
+const staggerObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target;
+        const delay = parseInt(el.dataset.staggerDelay || 80);
+        el.classList.add('revealed');
+        Array.from(el.children).forEach((child, i) => {
+            setTimeout(() => {
+                child.style.transition = `opacity 0.65s cubic-bezier(0.22,1,0.36,1), transform 0.65s cubic-bezier(0.22,1,0.36,1)`;
+                child.style.opacity = '1';
+                child.style.transform = 'none';
+                /* trigger connector when how-steps reveals */
+                const fill = el.querySelector('.step-connector-fill');
+                if (fill) fill.classList.add('revealed');
+            }, i * delay);
+        });
+        staggerObserver.unobserve(el);
+    });
+}, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
+
+document.querySelectorAll('[data-stagger]').forEach(el => staggerObserver.observe(el));
+
+/* ── 6. Section line trigger on s-header ── */
+const headerObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        entry.target.querySelector('.section-line')?.classList.add('revealed');
+        headerObserver.unobserve(entry.target);
+    });
+}, { threshold: 0.3 });
+document.querySelectorAll('.s-header').forEach(el => headerObserver.observe(el));
+
+/* ── 7. Shimmer on hero heading ── */
+const shimmerEl = document.querySelector('.shimmer-text');
+if (shimmerEl) {
+    setTimeout(() => shimmerEl.classList.add('active'), 800);
+}
+
+/* ── 8. Parallax on scroll ── */
+const parallaxEls = document.querySelectorAll('.parallax-el');
+window.addEventListener('scroll', () => {
+    const sy = window.scrollY;
+    parallaxEls.forEach(el => {
+        const speed = parseFloat(el.dataset.parallaxSpeed || 0.1);
+        el.style.transform = `translateY(${sy * speed}px)`;
+    });
+}, { passive: true });
+
+/* ── 9. Subtle 3D card tilt ── */
+document.querySelectorAll('.tilt-card').forEach(card => {
+    card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const cx = rect.left + rect.width  / 2;
+        const cy = rect.top  + rect.height / 2;
+        const dx = (e.clientX - cx) / (rect.width  / 2);
+        const dy = (e.clientY - cy) / (rect.height / 2);
+        card.style.transform = `perspective(600px) rotateY(${dx * 6}deg) rotateX(${-dy * 6}deg) translateZ(4px)`;
+    });
+    card.addEventListener('mouseleave', () => {
+        card.style.transform = '';
+        card.style.transition = 'transform 0.5s cubic-bezier(0.22,1,0.36,1)';
+        setTimeout(() => { card.style.transition = ''; }, 500);
+    });
+});
+
+/* ── 10. Magnetic buttons ── */
+document.querySelectorAll('.mag-btn').forEach(btn => {
+    btn.addEventListener('mousemove', e => {
+        const rect = btn.getBoundingClientRect();
+        const cx = rect.left + rect.width  / 2;
+        const cy = rect.top  + rect.height / 2;
+        const dx = (e.clientX - cx) * 0.25;
+        const dy = (e.clientY - cy) * 0.25;
+        btn.style.transform = `translate(${dx}px, ${dy}px)`;
+    });
+    btn.addEventListener('mouseleave', () => {
+        btn.style.transform = '';
+        btn.style.transition = 'transform 0.5s cubic-bezier(0.22,1,0.36,1)';
+        setTimeout(() => { btn.style.transition = ''; }, 500);
+    });
+});
+
+/* ── 11. Number counter animation ── */
+function animateCounters() {
+    document.querySelectorAll('.count-up').forEach(el => {
+        const target = parseInt(el.dataset.target);
+        const dur = 1200;
+        const start = performance.now();
+        function step(now) {
+            const t = Math.min((now - start) / dur, 1);
+            const ease = 1 - Math.pow(1 - t, 3);
+            el.textContent = Math.round(ease * target);
+            if (t < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    });
+}
+/* Trigger counters when stat bar enters viewport */
+const statBar = document.querySelector('.stat-bar');
+if (statBar) {
+    const counterObs = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) { animateCounters(); counterObs.disconnect(); }
+    }, { threshold: 0.5 });
+    counterObs.observe(statBar);
+}
+
+/* ── 12. Floating particle system ── */
+const canvas = document.getElementById('particle-canvas');
+const ctx = canvas.getContext('2d');
+let W, H, particles = [];
+
+function resizeCanvas() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+const colors = ['rgba(124,106,247,', 'rgba(79,195,161,', 'rgba(79,195,247,'];
+
+function createParticle() {
+    return {
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 1.5 + 0.3,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        alpha: Math.random() * 0.5 + 0.1,
+        life: Math.random() * 200 + 100,
+        age: 0
+    };
+}
+
+for (let i = 0; i < 80; i++) particles.push(createParticle());
+
+function drawParticles() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach((p, i) => {
+        p.x  += p.vx;
+        p.y  += p.vy;
+        p.age++;
+        if (p.age > p.life || p.x < 0 || p.x > W || p.y < 0 || p.y > H) {
+            particles[i] = createParticle();
+            return;
+        }
+        const fade = Math.sin(Math.PI * p.age / p.life);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.color + (p.alpha * fade) + ')';
+        ctx.fill();
+    });
+    requestAnimationFrame(drawParticles);
+}
+drawParticles();
+
+/* ── 13. Nav shrink on scroll ── */
+const navEl = document.querySelector('nav');
+window.addEventListener('scroll', () => {
+    if (window.scrollY > 60) {
+        navEl.style.background = 'rgba(9,9,15,0.97)';
+        navEl.style.boxShadow = '0 1px 40px rgba(0,0,0,0.4)';
+    } else {
+        navEl.style.background = 'rgba(9,9,15,0.88)';
+        navEl.style.boxShadow = '';
+    }
+}, { passive: true });
+
+/* ── 14. Hero preview floating animation ── */
+const previewEl = document.querySelector('.hero-preview');
+if (previewEl) {
+    let floatT = 0;
+    function floatPreview() {
+        floatT += 0.008;
+        const scrollOffset = window.scrollY * 0.08;
+        previewEl.style.transform = `translateY(${Math.sin(floatT) * 8 - scrollOffset}px)`;
+        requestAnimationFrame(floatPreview);
+    }
+    floatPreview();
+}
+</script>
+
+</body>
+</html>
